@@ -13,6 +13,12 @@ def runMLE(x, w):
     for i in range(w // 2, n - w // 2):
         xw = x[i - w // 2 : i + w // 2 + 1]
         nw = len(xw)
+
+        lg = st.linregress(np.arange(xw.shape[0]), xw)[:]
+        p0 = lg[0]
+        p1 = lg[1]
+        xw = xw - p0 * np.arange(xw.shape[0]) - p1 # remove linear trend
+
         if np.std(xw) > 0:
             mu[i] = np.sum(xw)/(nw+1)
             ar1[i] = sm.tsa.acf(xw)[1]
@@ -31,7 +37,7 @@ def ffit(tt, t0, y0, tau_r):
 def get_EWS_fit(Tw, ts, initial_guess, bounds):
 # for a given Tw get the EWS timeseries and fit ffit to Alambda
     mu, ar1, var = runMLE(ts,w=Tw)
-    alpha = -np.log(ar1)
+    alpha = -np.log(ar1)*12
     sigma2 = 2*alpha*var
     A_lamb=(sigma2/(4*var))**2
     y = A_lamb[Tw//2:-Tw//2]
@@ -100,4 +106,4 @@ for dataset in datasets:
                             ),
                     )
 
-            array.to_netcdf('{}_{}_EWSfit.nc'.format(dataset,index))
+            array.to_netcdf('{}_{}_EWSfit_ldtrnd_ydt.nc'.format(dataset,index))
