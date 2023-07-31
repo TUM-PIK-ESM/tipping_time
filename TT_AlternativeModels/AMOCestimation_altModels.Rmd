@@ -33,13 +33,12 @@ library(ggplot2)   ## For nice plotting
 library(stats4)    ## For maximum likelihood facilities (mle())
 library(writexl)   ## For writing data frames into excel files
 library(readxl)    ## For reading data frames into excel files
-
+library(stringr)   ## For manipulating strings
 ```
 
 The following chunk code defines functions for likelihood calculations and simulations. Taken from DD23 without changes.
 
 ```{r }
-
 ## Function returning 2 x the negative log-likelihood of a trace up to a constant
 ## The trace is assumed an Ornstein-Uhlenbeck with constant mean mu and rate
 ## parameter alpha. 
@@ -214,18 +213,13 @@ t0 = 1924 ## Knowledge of t0 is presupposed. All synthetic models have the same 
 ##############################
 
 
-for (folder in list.dirs("SamplePathData", recursive = FALSE)){ ## each synthetic model has data stored in a separate folder
-#for (folder in c("SamplePathData/ou_rn_linforc")){
-  modelname = substr(folder,start=16,stop=1000000L) 
-  nsim = 1000   ## Number of simulations
+for (filepath in list.files("SamplePathData", full.names = TRUE)){ ## each synthetic model has data stored in a separate folder
+  modelname = str_sub(filepath,16,-5) 
   n = (2020-1870)*12
   Delta_t = 1/12
-  xx = matrix(NA, n, nsim)
-  for (isim in 1:nsim){
-    xxxx = scan(paste(folder,"/",isim,".txt", sep = ""), what = double(), quiet = TRUE)
-    nxx = length(xxxx)
-    xx[1:nxx, isim] = xxxx
-  }
+
+  xx = data.matrix(read.csv(filepath))[,-1]
+  nsim = dim(xx)[2]   ## Number of simulations
   xxtime = seq(from = 1870, to = 2020, length.out=n)
   xx.data = data.frame(X = c(xx), time = rep(xxtime, nsim),
                        repetition = rep(1:nsim, each = n))
@@ -233,7 +227,7 @@ for (folder in list.dirs("SamplePathData", recursive = FALSE)){ ## each syntheti
   
   
   pen = 0   ## First with no penalization, determine the estimated tau_r
-  nsim_crossval = 100 ## Do this for many sample time series to later adopt the mean of these estimations
+  nsim_crossval = floor(nsim/10) ## Do this for many sample time series to later adopt the mean of these estimations
   estim.tau = numeric(nsim_crossval) ## Vector to hold estimates
   for(isim in 1:nsim_crossval){
     ## Get data from isim simulation after time t0, when linear ramping has started
@@ -315,21 +309,17 @@ for (folder in list.dirs("SamplePathData", recursive = FALSE)){ ## each syntheti
 Here, residuals are calculated and plotted in a qq-plot, similar to Figure 6 in the paper. The qq-plot shows a good fit to the model of DD23.
 
 ```{r, eval = TRUE }
-for (folder in list.dirs("SamplePathData", recursive = FALSE)){ ## each synthetic model has data stored in a separate folder
-  modelname = substr(folder,start=16,stop=1000000L)
+for (filepath in list.files("SamplePathData", full.names = TRUE)){ ## each synthetic model has data stored in a separate folder
+  modelname = str_sub(filepath,16,-5)
 
   take_sample = 1 ## check the goodness of fit for several sample time series, i.e. =2, =3...
   n = (2020-1870)*12
   Delta_t = 1/12
-  xx = matrix(NA, n, nsim)
   
-  estim.matrix = data.matrix(read_xlsx(paste("EstimMatrix_",modelname,".xlsx", sep = ""))) ## get the estiamtion values of the above analysis
+  estim.matrix = data.matrix(read_xlsx(paste("EstimMatrix_",modelname,".xlsx", sep = ""))) ## get the estimation values of the above analysis
   
   ## read the desired sample path
-  xxxx = scan(paste("SamplePathData/",modelname,"/",take_sample,".txt", sep = ""), what = double(), quiet = TRUE)
-  nxx = length(xxxx)
-  xx[1:nxx, take_sample] = xxxx
-  
+  xx = data.matrix(read.csv(filepath))[,-1]
   xxtime = seq(from = 1870, to = 2020, length.out=n)
   xx.data = data.frame(X = c(xx), time = rep(xxtime, nsim),
                        repetition = rep(1:nsim, each = n))
