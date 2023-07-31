@@ -215,6 +215,7 @@ t0 = 1924 ## Knowledge of t0 is presupposed. All synthetic models have the same 
 
 
 for (folder in list.dirs("SamplePathData", recursive = FALSE)){ ## each synthetic model has data stored in a separate folder
+#for (folder in c("SamplePathData/ou_rn_linforc")){
   modelname = substr(folder,start=16,stop=1000000L) 
   nsim = 1000   ## Number of simulations
   n = (2020-1870)*12
