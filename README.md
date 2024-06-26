@@ -11,4 +11,4 @@ TT_generalAlternativeModels/generalPlots.ipynb: The code for generating Figures 
 
 TT_AMOCAlternativeModels/AMOCPlots.ipynb: The code for generating Figure 3.
 
-To download the datasets underlying the analyses of Figures 1-5, visit the following [zenodo folder](www.doi.org/10.5281/zenodo.12549739).
+To download the datasets underlying the analyses of Figures 1-5, visit the following [zenodo folder](https://doi.org/10.5281/zenodo.12549739).
