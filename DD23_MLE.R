@@ -1,6 +1,8 @@
 library(ggplot2)   ## For nice plotting
 library(stats4)    ## For maximum likelihood facilities (mle())
 # library(writexl)   ## For writing data frames into excel files
+# library(readxl)    ## For reading data frames into excel files
+# library(stringr)
 
 ## Function returning 2 x the negative log-likelihood of a trace up to a constant
 ## The trace is assumed an Ornstein-Uhlenbeck with constant mean mu and rate
@@ -160,87 +162,49 @@ S.onestep <- function(sigma = 0.1, lambda = 0, m = 0, a = 1, X0 = 1, dt = 0.1){
 indices <- c('C18_2GMT', 'C18', 'dipole')
 datasets <- c('HadISST', 'ERSSTv5', 'HadCRUT5')
 
-ttimes <- matrix(data=NA,nrow=3,ncol=3)
+# ttimes <- matrix(data=NA,nrow=3,ncol=3)
+estim.matrix = matrix(0, ncol = 8, nrow = 9)
+dimnames(estim.matrix)[[2]] = c("alpha0","mu0","lambda0", "tau", "s2", "m", "a", "tc")
+dimnames(estim.matrix)[[1]] = c("C18_2GMT_H","C18_2GMT_E","C18_2GMT_C", "C18_H", "C18_E", "C18_C", "dipole_H", "dipole_E", "dipole_C")
 
+isim = 1
 for (i in 1:length(indices)) {
   for (j in 1:length(datasets)) {
+    print(isim)
     dataset <- datasets[[j]]
     index <- indices[[i]]
-    file <- paste0('../TT_fingerprints/', dataset, '_amoc.txt')
+    file <- paste0('TT_fingerprints/', dataset, '_amoc.txt')
 
     AMOC.data = read.table(file,header=TRUE)
 
     t0     = 1924
     data.0 = AMOC.data[AMOC.data$time <= t0, index]
 
-    temp   = estimate.OU(data = data.0, delta = 1/12)
-    alpha0 = unname(coef(temp)["alpha"])
-    mu0    = unname(coef(temp)["mu"])
-    sigma2 = unname(coef(temp)["sigma2"])
-
+    temp1   = estimate.OU(data = data.0, delta = 1/12)
+    estim.matrix[isim,"alpha0"] = coef(temp1)[1]
+    estim.matrix[isim,"mu0"]    = coef(temp1)[2]
+    estim.matrix[isim,"s2"]     = coef(temp1)[3]
     data.2 = AMOC.data[AMOC.data$time > t0, index]
 
-    temp = estimate.tipping(data = data.2, delta = 1/12, initial.values = c(100,1),
-                            alpha0 = alpha0, mu0 = mu0, sigma20 = sigma2, 
-                            pen = 0.004)
-    tau     = unname(temp$par[1])
-    a       = unname(temp$par[2])
-    m       = mu0 - alpha0/(2 * a)
-    lambda0 = -alpha0^2/(4 * a)
-    tc      = tau + t0
-    # print(dataset)
-    # print(index)
-    # print(tc)
-    ttimes[i,j] <- tc
+    temp2 = estimate.tipping(data = data.2, delta = 1/12, initial.values = c(100,1),
+                            alpha0 = coef(temp1)[1], mu0 = coef(temp1)[2], sigma20 = coef(temp1)[3], 
+                            pen = 0)
+    # tau     = unname(temp$par[1])
+    # a       = unname(temp$par[2])
+    # m       = mu0 - alpha0/(2 * a)
+    # lambda0 = -alpha0^2/(4 * a)
+    # tc      = tau + t0
+    # ttimes[i,j] <- tc
     # print(round(c(t0 = t0, alpha0 = alpha0, mu0 = mu0, sigma2 = sigma2, tau = tau, 
             # a = a, m = m, lambda0 = lambda0, tc = tc),2))
+    estim.matrix[isim,"tau"] = temp2$par[1]
+    estim.matrix[isim, "a"]  = temp2$par[2]
+    estim.matrix[isim,"m"] = estim.matrix[isim,"mu0"] - estim.matrix[isim,"alpha0"]/(2*estim.matrix[isim,"a"])
+    estim.matrix[isim,"lambda0"] = - estim.matrix[isim,"alpha0"]^2/(4*estim.matrix[isim,"a"])
+    estim.matrix[isim,"tc"] = estim.matrix[isim,"tau"] + t0
+
+    isim = isim +1
   }
 }
-rownames(ttimes) <- indices
-colnames(ttimes) <- datasets
-print(ttimes)
-
-# ## Read data
-# # AMOC.data = read.table("AMOCdata.txt", header = TRUE)
-# AMOC.data = read.table('../TT_fingerprints/HadISST_amoc.txt',header=TRUE)
-# ## time: calendar time in years
-# ## AMOC0: SST (sea surface temperature) in subpolar gyre, subtracted the monthly mean
-# ## AMOC1: AMOC0 subtracted the global mean SST
-# ## AMOC2: AMOC0 subtracted two times the global mean SST (Arctic amplification)
-# ## GM: global mean SST 
-
-# ## Adding fingerprint with 3 times subtracted global warming for robustness analysis
-# # AMOC.data$AMOC3 = AMOC.data$AMOC0 - 3 * AMOC.data$GM
-
-# ## Estimating Ornstein-Uhlenbeck parameters from data up to year 1924
-# ## before linear ramping of control parameter lambda starts
-
-# ## Baseline data: Subset of data for the years 1870-1924
-# t0     = 1924
-# # data.0 = AMOC.data[AMOC.data$time <= t0, "AMOC2"]
-# data.0 = AMOC.data[AMOC.data$time <= t0, "dipole"]
-
-# ## Estimate parameters
-# temp   = estimate.OU(data = data.0, delta = 1/12)
-# alpha0 = unname(coef(temp)["alpha"])
-# mu0    = unname(coef(temp)["mu"])
-# sigma2 = unname(coef(temp)["sigma2"])
-
-# ## Ramping data: Subset of data for the years 1925-2020
-# ## Subtracted 2 times global mean
-# # data.2 = AMOC.data[AMOC.data$time > t0, "AMOC2"]
-# data.2 = AMOC.data[AMOC.data$time > t0, "dipole"]
-
-# ## Estimate ramping parameters
-# temp = estimate.tipping(data = data.2, delta = 1/12, initial.values = c(100,1),
-#                         alpha0 = alpha0, mu0 = mu0, sigma20 = sigma2, 
-#                         pen = 0.004)
-# tau     = unname(temp$par[1])
-# a       = unname(temp$par[2])
-# m       = mu0 - alpha0/(2 * a)
-# lambda0 = -alpha0^2/(4 * a)
-# tc      = tau + t0
-
-# ## Collect estimates
-# round(c(t0 = t0, alpha0 = alpha0, mu0 = mu0, sigma2 = sigma2, tau = tau, 
-#         a = a, m = m, lambda0 = lambda0, tc = tc),2)
+write.csv(as.data.frame(estim.matrix), "TT_EWS/EstimMatrix_p0.txt")
+print (estim.matrix)
